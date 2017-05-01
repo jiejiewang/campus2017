@@ -1,169 +1,84 @@
-import java.io.BufferedReader;
+import java.util.Scanner;
 import java.io.File;
+import java.io.BufferedReader;
 import java.io.FileReader;
-import java.io.IOException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.*;
+
 /*
-三、根据指定项目目录下（可以认为是java源文件目录）中，统计被import最多的类，前十个是什么。
+ * Created by Administrator on 2017/4/7.
+ * 题目一、统计一个Java文件的有效行数。（作业命名：Main）
+ 1、有效不包括空行
+ 2、不考虑代码见有多行注释的情况
  */
-
+/*
+分析：
+1、读入待处理的java文件
+（1）、保证读入的文件路径正确
+（2）、保证读入文件为.java的后缀
+2、判断Java文件的有效行数
+（1）、不包括空行
+（2）、不考虑代码见有多行注释的情况（
+ */
 public class Main {
-
-    private Map<String,Integer> importMap =new HashMap<String,Integer>();
-
-    private class Pair implements Comparable<Pair>
+    public static void main(String[] args)
     {
-        String importName;
-        int count;
-        Pair(String name, int count)
-        {
-            importName = name;
-            this.count = count;
-        }
-
-        public int compareTo(Pair o)
-        {
-            return o.count - count;
-        }
-
-        @Override
-        public String toString()
-        {
-            return '"' + importName + '"' + ": " + count;
-        }
-    }
-
-    /*
-     *
-     * @param dir
-     */
-    public void getFile(String dir)
-    {
-        if (dir == null)
-        {
-            return;
-        }
-
-        File file =new File(dir);
+        int lineNum = 0;
+        System.out.println("Please input a file path ：");
+        Scanner scanner = new Scanner(System.in);
+        String filePath = scanner.nextLine();
+        File file = new File(filePath);
+        String fileName = file.getName();
         if (!file.exists())
         {
-            System.out.println("File Not Exists");
-            return;
+            System.out.println("The file is not exists!");
         }
-
-        Stack<File> stack = new Stack<File>();
-        stack.push(file);
-
-        while (!stack.isEmpty())
+        else if(fileName.substring(fileName.length()-5).equals(".java"))
         {
-            file = stack.peek();
-            stack.pop();
-
-            for(File f :file.listFiles())
-            {
-                if (f.isFile())
-                {
-                    countImport(f);
-                } else if (f.isDirectory()){
-                    stack.push(f);
-                }
-
-            }
+            lineNum = effectiveLineNum(filePath);
+            System.out.println("The effective number of lines in "+fileName+" : "+lineNum);
+        }
+        else{
+            System.out.println("The file is not Java file!");
         }
 
     }
-
-    /*
-     *
-     * @param file
-     */
-    public void countImport(File file)
-    {
-        if (!file.getName().contains(".java"))
-        {
-            return;
-        }
-        BufferedReader br = null;
-
+    public static Integer effectiveLineNum(String filePath)
+    {   int lineNum = 0;//记录有效行数
+        String line = null;//读入每行的字符串
         try {
-            br = new BufferedReader(new FileReader(file));
-            String line = null;
-            boolean isImport = false;
+        BufferedReader br = new BufferedReader(new FileReader(filePath));
 
-            while ((line=br.readLine())!=null)
+        while ((line = br.readLine()) != null)
+        {
+            line = line.trim();
+            if (line.equals(""))
             {
-                // 忽略 import static 行
-                Pattern p = Pattern.compile("^import\\s+static\\s+");
-                Matcher m = p.matcher(line.trim());
-                if (m.find()) {
-                    continue;
-                }
-
-                // 匹配 import 开始行
-                p = Pattern.compile("^import\\s+");
-                m = p.matcher(line.trim());
-                if (m.find()) {
-                    isImport = true;
-                    String temp = line.trim().substring(6).replace(";", "");
-                    if (importMap.containsKey(temp))
-                    {
-                        int count = importMap.get(temp);
-                        count++;
-                        importMap.put(temp,count);
-                    } else {
-                        importMap.put(temp,1);
-                    }
-                }
+                continue;
             }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (br != null)
+            else if (line.startsWith("/*") && line.endsWith("*/"))
             {
-                try {
-                    br.close();
-                } catch (IOException e)
+                continue;
+
+            }
+            else if (line.indexOf("/*") != -1)
+            {
+
+                while (line.indexOf("*/") == -1)
                 {
-                    e.printStackTrace();
+                    line = br.readLine();
                 }
             }
-        }
-    }
-
-    /**
-     *
-     */
-    public void countTop10Import()
-    {
-        List<Pair> list = new ArrayList<Pair>();
-        Set<String> importNames = importMap.keySet();
-        for(String importName :importNames)
-        {
-            Pair pair = new Pair(importName,importMap.get(importName));
-            list.add(pair);
-        }
-
-        Pair[] pairArray = new Pair[0];
-        pairArray = list.toArray(pairArray);
-        Arrays.sort(pairArray);
-        int N=0;
-        for (Pair pair : pairArray)
-        {
-            if (++N >10)
-            {
-                break;
+            else {
+               lineNum++;
             }
-            System.out.println(pair);
         }
+
+    }
+    catch (Exception e)
+    {
+        e.printStackTrace();
+    }
+        return lineNum;
     }
 
-    public static void main(String[] args) {
-        String dirPath = "\\Users\\Administrator\\IdeaProjects\\CountMostImport\\src";
-        Main c = new Main();
-        c.getFile(dirPath);
-        c.countTop10Import();
-    }
+
 }
