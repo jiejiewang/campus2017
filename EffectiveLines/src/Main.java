@@ -1,55 +1,84 @@
-import java.io.*;
 import java.util.Scanner;
+import java.io.File;
+import java.io.BufferedReader;
+import java.io.FileReader;
 
-/**
- * Created by Administrator on 2017/1/7 0007.
+/*
+ * Created by Administrator on 2017/4/7.
+ * 题目一、统计一个Java文件的有效行数。（作业命名：Main）
+ 1、有效不包括空行
+ 2、不考虑代码见有多行注释的情况
+ */
+/*
+分析：
+1、读入待处理的java文件
+（1）、保证读入的文件路径正确
+（2）、保证读入文件为.java的后缀
+2、判断Java文件的有效行数
+（1）、不包括空行
+（2）、不考虑代码见有多行注释的情况（
  */
 public class Main {
-    public static void main(String[] args){
-        String filePath = "";
-        System.out.println("请输入要统计的文件路径");
-        Scanner in = new Scanner(System.in);
-        filePath = in.nextLine();
-        //filePath = "E:/QunarTest/EffectiveLines/test/Calculate.java";
+    public static void main(String[] args)
+    {
+        int lineNum = 0;
+        System.out.println("Please input a file path ：");
+        Scanner scanner = new Scanner(System.in);
+        String filePath = scanner.nextLine();
         File file = new File(filePath);
-        if(file.exists()){
-            try {
-
-                System.out.println("该文件有效行数为：" + count(file));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        } else {
-            System.out.println("can't find the file!");
+        String fileName = file.getName();
+        if (!file.exists())
+        {
+            System.out.println("The file is not exists!");
         }
+        else if(fileName.substring(fileName.length()-5).equals(".java"))
+        {
+            lineNum = effectiveLineNum(filePath);
+            System.out.println("The effective number of lines in "+fileName+" : "+lineNum);
+        }
+        else{
+            System.out.println("The file is not Java file!");
+        }
+
     }
-    //有效行计数
-    private static int count(File file) throws IOException {
-        int lineCount = 0;
-        BufferedReader br = null;
-        br = new BufferedReader(new FileReader(file));
-        String line = null;
+    public static Integer effectiveLineNum(String filePath)
+    {   int lineNum = 0;//记录有效行数
+        String line = null;//读入每行的字符串
         try {
-            while((line = br.readLine()) != null){
-                if(isValid(line)){
-                    lineCount++;
+        BufferedReader br = new BufferedReader(new FileReader(filePath));
+
+        while ((line = br.readLine()) != null)
+        {
+            line = line.trim();
+            if (line.equals(""))
+            {
+                continue;
+            }
+            else if (line.startsWith("/*") && line.endsWith("*/"))
+            {
+                continue;
+
+            }
+            else if (line.indexOf("/*") != -1)
+            {
+
+                while (line.indexOf("*/") == -1)
+                {
+                    line = br.readLine();
                 }
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            br.close();
+            else {
+               lineNum++;
+            }
         }
-        return  lineCount;
 
     }
-    //判断是否是有效行
-    private static boolean isValid(String line){
-        line = line.trim();
-        if("".equals(line)||line.startsWith("//")||(line.startsWith("/*")&&line.endsWith("*/"))){
-            return false;
-        } else {
-            return true;
-        }
+    catch (Exception e)
+    {
+        e.printStackTrace();
     }
+        return lineNum;
+    }
+
+
 }

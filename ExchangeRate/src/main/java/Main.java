@@ -1,89 +1,151 @@
-import org.apache.poi.hssf.usermodel.HSSFRow;
-import org.apache.poi.hssf.usermodel.HSSFSheet;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+/**
+ * Created by Administrator on 2017/4/21.
+ */
+
+/*
+ * Created by juanpingl on 17/2/12.
+ * 二、分析从今天开始过去 30 天时间里，中国人民银行公布的人民币汇率中间价，得到人民币对美元、欧元、
+ * 港币的汇率，形成 excel 文件输出。汇率数据找相关的数据源，自己爬数据分析。（作业命名：Main）
+ */
+import jxl.Workbook;
+import jxl.write.Label;
+import jxl.write.WritableSheet;
+import jxl.write.WritableWorkbook;
+import jxl.write.WriteException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.ArrayList;
+import java.io.OutputStream;
+import java.util.Date;
 import java.util.List;
-import java.util.Scanner;
-
-/**
- * Created by wwy on 2017/1/10 0010.
- */
 public class Main {
-
-    public static void main(String[] args){
-
-        String path = null;
-        System.out.print("请输入打印路径:");
-        Scanner in = new Scanner(System.in);
-        path = in.nextLine();
-        //path = "F:\\";
+    //爬取数据
+    public static Document getDataByJsoup(String url, String startDate, String endDate) {
+        Document document = null;
         try {
-            List<RateBean> result  = getRate();
-            printRate(result, path);
-            System.out.println("打印成功");
-        } catch (IOException e) {
+            document = Jsoup.connect(url)
+                    .data("startDate",startDate)
+                    .data("endDate", endDate)
+                    .timeout(5000).post();
+        } catch (java.net.SocketTimeoutException e) {
+            System.out.println("Socket连接超时");
+        } catch (java.io.IOException e) {
             e.printStackTrace();
         }
-
+        return document;
     }
 
-    public static List<RateBean> getRate() throws IOException {
-        List<RateBean> list = new ArrayList<RateBean>();
+    //写入excel
+    public static void outputToExcel(List day,List usd, List eur, List hkd){
 
-        Document rDocument = Jsoup.connect("http://www.chinamoney.com.cn/fe-c/historyParity.do").post();
-        Element rBody = rDocument.body();
-        Element rTable = rBody.getElementsByTag("table").last();
-        Elements rRow = rTable.getElementsByTag("tr");
+        WritableWorkbook wwb = null;
+        OutputStream os = null;
+        try {
+            String[] title = {"1美元对人民币", "1欧元元对人民币", "1港币对人民币"};
+            String filePath = "D:\\JXL.xls";
+            File file = new File(filePath);
+            file.createNewFile();
+            os = new java.io.FileOutputStream(filePath);
+            wwb = Workbook.createWorkbook(os);
+            WritableSheet sheet = wwb.createSheet("过去30天内人民币对美元、欧元、港币汇率中间价", 0);
+            Label label = new Label(0, 0, "日期（30天）");
+            sheet.addCell(label);
+            for (int i = 1; i < title.length+1; i++) {
+                label = new Label(i, 0, title[i-1]);
+                sheet.addCell(label);
+            }
 
-        for(int i = 1; i < rRow.size(); i++ ){
-            Elements rTd = rRow.get(i).getElementsByTag("td");
-            String date = rTd.get(0).getElementsByTag("div").get(0).text();
-            list.add(new RateBean(date,Double.parseDouble(rTd.get(1).text())));
-            list.add(new RateBean(date,Double.parseDouble(rTd.get(2).text())));
-            list.add(new RateBean(date,Double.parseDouble(rTd.get(4).text())));
+            for (int a = 1; a < usd.size(); a++) {
+                label = new Label(1,a,(String) usd.get(a));
+                sheet.addCell(label);
+            }
+            for (int b = 1; b < eur.size(); b++) {
+                label = new Label(2,b, (String) eur.get(b));
+                sheet.addCell(label);
+            }
+            for (int c = 1; c < hkd.size(); c++) {
+                label = new Label(3,c, (String) hkd.get(c));
+                sheet.addCell(label);
+            }
+            for (int d = 1; d < day.size(); d++) {
+                label = new Label(0,d,(String) day.get(d));
+                sheet.addCell(label);
+            }
+            wwb.write();
+        } catch (java.io.FileNotFoundException e) {
+            System.out.println("文件没找到");
+        } catch (WriteException e) {
+            System.out.println("输入异常");
+        } catch (Exception exception) {
+            exception.printStackTrace();
+        } finally {
+            if (wwb != null)
+                try {
+                    wwb.close();
+                } catch (WriteException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                } catch (java.io.IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                }
+            if (os != null)
+                try {
+                    os.close();
+                } catch (java.io.IOException e) {
+                    e.printStackTrace();
+                }
         }
-
-        System.out.println("网页读取成功");
-        return list;
-
     }
 
-    public static void printRate(List<RateBean> list, String path) throws IOException {
-        File file = new File(path);
-        if(!file.exists()){
-            file.mkdir();
+    //从网页中抓取数据放入对应的参数中
+    public static void getDataFromHTML(int days) {
+        java.util.List<String> day = new java.util.ArrayList();
+        java.util.List<String> usd = new java.util.ArrayList();
+        java.util.List<String> eur = new java.util.ArrayList();
+        java.util.List<String> hkd = new java.util.ArrayList();
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd");
+        Date now = new Date();
+        String endDate = sdf.format(now);
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        c.setTime(now);
+        c.add(java.util.Calendar.DAY_OF_YEAR, -days);
+        String startDate = sdf.format(c.getTime());
+
+        Document document = Main
+                .getDataByJsoup("http://www.chinamoney.com.cn/fe-c/historyParity.do",startDate,endDate);
+
+        Elements trs = document.select("tr");
+
+        for (Element tr : trs){
+            Elements tds = tr.select("td.dreport-row1");
+            if (tds.isEmpty())
+                tds = tr.select("td.dreport-row2");
+            if (tds.isEmpty())
+                continue;
+            usd.add(tds.get(0).html());
+            eur.add(tds.get(1).html());
+            hkd.add(tds.get(3).html());
+        }
+        Elements day_ele = document.select("tr");
+        for (Element tr : day_ele){
+            Elements day_ele_d = tr.select("td.dreport-row1-1");
+            if (day_ele_d.isEmpty())
+                day_ele_d = tr.select("td.dreport-row2-1");
+            if (day_ele_d.isEmpty())
+                continue;
+            day.add(day_ele_d.text());
+
         }
 
-        HSSFWorkbook hwb = new HSSFWorkbook();
-        HSSFSheet hSheet=hwb.createSheet("人民币汇率中间价");
-        HSSFRow row1=hSheet.createRow(0);
-
-        row1.createCell(0).setCellValue("日期");
-        row1.createCell(1).setCellValue("美元汇率");
-        row1.createCell(2).setCellValue("欧元汇率");
-        row1.createCell(3).setCellValue("港币汇率");
-
-
-        for(int row=0;row<list.size();row+=3){
-            HSSFRow row2=hSheet.createRow(row/3+1);
-            row2.createCell(0).setCellValue(list.get(row).getDate());
-            row2.createCell(1).setCellValue(list.get(row).getPrice());
-            row2.createCell(2).setCellValue(list.get(row+1).getPrice());
-            row2.createCell(3).setCellValue(list.get(row+2).getPrice());
-        }
-        hSheet.setColumnWidth(0,15*256);
-
-
-        FileOutputStream fos = new FileOutputStream(path + "\\ExchangeRate.xls");
-        hwb.write(fos);
-        fos.close();
+        outputToExcel(day,usd, eur, hkd);
     }
+
+    public static void main(String[] args){
+        Main.getDataFromHTML(30);
+    }
+
 }
